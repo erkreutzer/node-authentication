@@ -2,9 +2,12 @@
 
 // load all the things we need
 var LocalStrategy   = require('passport-local').Strategy;
+var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 
 // load up the user model
 var User            = require('../app/models/user');
+
+var configAuth = require('./auth');
 
 // expose this function to our app using module.exports
 module.exports = function(passport) {
@@ -109,6 +112,44 @@ module.exports = function(passport) {
 
         });
 
+      });
+
+    }));
+
+  // =========================================================================
+  // GOOGLE ==================================================================
+  // =========================================================================
+  passport.use(new GoogleStrategy({
+
+      clientID        : configAuth.googleAuth.clientID,
+      clientSecret    : configAuth.googleAuth.clientSecret,
+      callbackURL     : configAuth.googleAuth.callbackURL,
+      passReqToCallback : true // allows us to pass in the req from our route (lets us check if a user is logged in or not)
+    },
+    function(req, token, refreshToken, profile, done) {
+
+      // make the code asynchronous
+      // User.findOne won't fire until we have all our data back from Google
+      process.nextTick(function() {
+        if (!req.user) {
+          done(new Error("Not logged in"));
+        } else {
+          // user already exists and is logged in, we have to link accounts
+          var user            = req.user; // pull the user out of the session
+
+          // update the current users Google credentials
+          user.google.id    = profile.id;
+          user.google.token = token;
+          user.google.name  = profile.displayName;
+          user.google.email = profile.emails[0].value; // pull the first email
+
+          // save the user
+          user.save(function(err) {
+            if (err)
+              throw err;
+            return done(null, user);
+          });
+        }
       });
 
     }));

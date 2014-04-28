@@ -45,6 +45,37 @@ module.exports = function(app, passport) {
     failureFlash : true // allow flash messages
   }));
 
+  // =============================================================================
+  // AUTHORIZE (ALREADY LOGGED IN / CONNECTING OTHER SOCIAL ACCOUNT) =============
+  // =============================================================================
+
+  // send to google to do the authentication
+  app.get('/connect/google', passport.authorize('google', { scope : ['profile', 'email'] }));
+
+  // the callback after google has authorized the user
+  app.get('/connect/google/callback',
+    passport.authorize('google', {
+      failureRedirect : '/'
+    }), function(req, res) {
+      res.redirect('/profile');
+    });
+
+  // =============================================================================
+  // UNLINK ACCOUNTS =============================================================
+  // =============================================================================
+  // used to unlink accounts. for social accounts, just remove the token
+  // for local account, remove email and password
+  // user account will stay active in case they want to reconnect in the future
+
+  // google ---------------------------------
+  app.get('/unlink/google', function(req, res) {
+    var user          = req.user;
+    user.google.token = undefined;
+    user.save(function(err) {
+      res.redirect('/profile');
+    });
+  });
+
   // =====================================
   // PROFILE SECTION =====================
   // =====================================
